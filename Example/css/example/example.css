@@ -1,0 +1,14 @@
+/*https://coolors.co/5d737e-64b6ac-c0fdfb-daffef-fcfffd*/
+
+.container {
+	padding: 0px;
+}
+
+.jumbotron {
+	color: white;	
+	background-color: #5d737e;
+}
+
+body {
+	background-color: #fcfffd;
+}
