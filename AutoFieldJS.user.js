@@ -14,22 +14,6 @@
 // ==/UserScript==
 
 //
-// Utilities
-//
-
-String.prototype.hashCode = function() 
-{
-    var hash = 0, i, chr;
-    if (this.length === 0) return hash;
-    for (i = 0; i < this.length; i++) {
-    chr   = this.charCodeAt(i);
-    hash  = ((hash << 5) - hash) + chr;
-    hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
-};
-
-//
 //  AutoFieldJS Initialization
 //
 function AutoFieldJS() { };
@@ -48,6 +32,25 @@ AutoFieldJS.Init = function()
         {
             text-align: center;
             margin: 20px 0px;
+        }
+
+        .autofield-circle
+        {
+            position:fixed;
+            left: 20px;
+            bottom: 20px;
+            
+            width:50px;
+            height:50px;
+
+            z-index:1000000;
+            border-radius: 50%;
+            background-color: black;
+        }
+
+        .autofield-circle:hover
+        {
+            background-color: grey;
         }
 
         .autofield-label
@@ -72,6 +75,9 @@ AutoFieldJS.Init = function()
             z-index: 999999;
             overflow:auto;
 
+            width:100%;
+            height:100%;
+
             top: 0px;
             left: 0px;
 
@@ -80,15 +86,14 @@ AutoFieldJS.Init = function()
 
         .autofield-container 
         {
-            position:relative;
+            position:fixed;
             padding: 50px;
-            top: 50px;
+            top: 50%;
             left: 50%;
 
             width: 600px;
-            /*height: 600px;*/
 
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateY(-50%);
 
             border-radius: 20px;
             background: white;
@@ -120,24 +125,24 @@ AutoFieldJS.Init = function()
             </div>
         </p>
     `);
+    var $autoFieldEditCircle = $("<div>", {class:"autofield-circle"});
+    var $autoFieldContextMenu = $(`
+        <menu type="context" id="autofield-menu">
+            <menuitem label="AutoFieldJS: Add configuration for selected field">
+        </menu>
+    `);
+    $autoFieldEditCircle.click(function() 
+    {
+        $(".autofield-overlay").toggleClass("autofield-overlay-enabled")
+    });
+    
     $autoFieldOverlay.append($autoFieldContainer);
     $autoFieldContainer.append($autoFieldPageConfig);
+    $("body").append($autoFieldContextMenu);
     $("body").append($autoFieldOverlay);
+    $("body").append($autoFieldEditCircle);
 
-    if (!($("body").height() > $(window).height())) 
-    {
-        $(window).resize(function() 
-        {
-            $autoFieldOverlay.css("width", window.innerWidth + "px");
-            $autoFieldOverlay.css("height", window.innerHeight + "px");
-        });
-
-        $(window).trigger('resize');
-    } else 
-    {
-        $autoFieldOverlay.css("width", "100%");
-        $autoFieldOverlay.css("height", "100%");
-    }
+    $("input, select, textarea").attr("contextmenu", "autofield-menu");
 }
 
 //
@@ -149,7 +154,32 @@ input["text"] = function()
 
 };
 
+input["password"] = function() // This is such a bad idea :c
+{ 
+    
+};
+
 input["number"] = function() 
+{ 
+    
+};
+
+input["radio"] = function() 
+{ 
+    
+};
+
+input["checkbox"] = function() 
+{ 
+    
+};
+
+input["select"] = function() 
+{ 
+    
+};
+
+input["textarea"] = function() 
 { 
     
 };
@@ -162,7 +192,7 @@ function Config() { };
 
 Config.Load = function() 
 {
-    alert("URL: " + window.location.href + ", Hash: " + window.location.href.hashCode());
+    // alert("URL: " + window.location.href + ", Hash: " + window.location.href.hashCode());
 };
 
 Config.Save = function() 
