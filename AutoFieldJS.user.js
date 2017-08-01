@@ -8,17 +8,65 @@
 // @grant       GM_addStyle
 // @grant       GM_getValue 
 // @grant       GM_setValue 
+// @grant       GM_listValues
 // @grant       GM_deleteValue
-// @require     https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js
 // @require     https://code.jquery.com/jquery-3.2.1.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/pouchdb/6.3.4/pouchdb.min.js
 // ==/UserScript==
+
+//
+//  Variable(s)
+//
+
+//
+// Utils
+//
+function deserialize(name, def)
+{
+    return eval(GM_getValue(name, (def || '({})')));
+}
+
+function serialize(name, val)
+{
+    GM_setValue(name, uneval(val));
+}
 
 //
 //  AutoFieldJS Initialization
 //
 function AutoFieldJS() { };
 
+AutoFieldJS.Setup = function()
+{
+    var db = new PouchDB('dbname');
+
+    db.put({
+    _id: 'dave@gmail.com',
+    name: 'David',
+    age: 69
+    });
+
+
+    serialize("db", db);
+
+    console.log(GM_listValues());
+    
+    console.log(GM_getValue("Page"));
+
+    console.log(db);
+    console.log(deserialize("db"));
+
+    console.log(db.get('dave@gmail.com'));
+}
+
 AutoFieldJS.Init = function()
+{
+    AutoFieldJS.Setup();
+    AutoFieldJS.InitUI();
+}
+
+AutoFieldJS.InitUI = function()
 {
     // TIL about Template Literals
     var autofieldCSS = `
@@ -135,6 +183,16 @@ AutoFieldJS.Init = function()
     {
         $(".autofield-overlay").toggleClass("autofield-overlay-enabled")
     });
+
+    if ($(document).height() <= $(window).height())
+    {
+        $(window).on("resize", function(){
+            var win = $(this);
+            $autoFieldOverlay.height(win.height());
+        });
+
+        $(window).trigger("resize");
+    }
     
     $autoFieldOverlay.append($autoFieldContainer);
     $autoFieldContainer.append($autoFieldPageConfig);
@@ -143,6 +201,10 @@ AutoFieldJS.Init = function()
     $("body").append($autoFieldEditCircle);
 
     $("input, select, textarea").attr("contextmenu", "autofield-menu");
+};
+
+AutoFieldJS.ClearAll = function()
+{
 }
 
 //
@@ -190,9 +252,10 @@ input["textarea"] = function()
 var config;
 function Config() { };
 
-Config.Load = function() 
+Config.Load = function(name) 
 {
     // alert("URL: " + window.location.href + ", Hash: " + window.location.href.hashCode());
+
 };
 
 Config.Save = function() 
