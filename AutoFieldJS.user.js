@@ -8,16 +8,85 @@
 // @grant       GM_addStyle
 // @grant       GM_getValue 
 // @grant       GM_setValue 
-// @grant       GM_listValues
 // @grant       GM_deleteValue
+// @grant       GM_listValues
 // @require     https://code.jquery.com/jquery-3.2.1.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js
-// @require     https://cdnjs.cloudflare.com/ajax/libs/pouchdb/6.3.4/pouchdb.min.js
 // ==/UserScript==
+
+// Required Libraries:
+//  - Moment.js     (Date)
+//  - Underscore.js (Data/Utiliy/Processing)
+//  - jQuery        (UI/Logic)
 
 //
 //  Variable(s)
 //
+
+//
+// Classes
+//
+
+// ConfigManager Class (Handles validation for adding config(s) for pages etc.)
+function ConfigManager()
+{
+    var config = deserialize('ConfigManager');
+    if(jQuery.isEmptyObject(config))
+    {
+        config = new Map();
+        serialize(config);
+
+        return config;
+    } else 
+    {
+        return config;
+    }
+    // console.log(eval(undefined));
+    // console.log(eval(null));
+
+    if(config != null)
+    {
+        return config;
+    } else
+    {
+        return config;
+    }
+}
+
+ConfigManager.Foo = function()
+{
+    ConfigManager();
+    // alert("bar");
+}
+
+ConfigManager.Foo();
+// End of ConfigManager Class
+
+// Page Class
+var Page = function(url)
+{
+    this.url = url;
+    this.config = new Map(); // <Config(Key), Boolean>
+}
+
+// Config Class
+var Config = function(name)
+{
+    this.name = name;
+    this.fields = new Map(); // <Field(String), Value(String)>
+};
+
+Config.prototype.add = function(field, value)
+{
+    this.fields.set(field, value);
+}
+
+Config.prototype.remove = function(field)
+{
+    
+}
+// End of Config Class
 
 //
 // Utils
@@ -39,25 +108,7 @@ function AutoFieldJS() { };
 
 AutoFieldJS.Setup = function()
 {
-    var db = new PouchDB('dbname');
-
-    db.put({
-    _id: 'dave@gmail.com',
-    name: 'David',
-    age: 69
-    });
-
-
-    serialize("db", db);
-
-    console.log(GM_listValues());
-    
-    console.log(GM_getValue("Page"));
-
-    console.log(db);
-    console.log(deserialize("db"));
-
-    console.log(db.get('dave@gmail.com'));
+    var configs = {};
 }
 
 AutoFieldJS.Init = function()
