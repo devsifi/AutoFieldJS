@@ -18,99 +18,134 @@
 // Value Generation
 function Generate() { }
 
-Generate.Char = function()
-{
+Generate.Char = function() {
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz";
     return chars.charAt(Math.floor(Math.random() * chars.length));
 }
 
-Generate.String = function(length)
-{
+Generate.String = function(length) {
     var str = "";
-
-    for(var i = 0; i < length; i++)
-    {
+    for(var i = 0; i < length; i++) {
         str += Generate.Char();
     }
 
     return str;
 }
 
-Generate.Date = function(days = 0, months = 0, years = 0, format = 'DD-MM-YYYY')
-{
+Generate.Date = function(days = 0, months = 0, years = 0, format = 'DD-MM-YYYY') {
     var date = moment();
     date = date.add(days, "d").add(months, "M").add(years, "y");
 
     return date.format(format);
 }
 
-Generate.Time = function(seconds = 0, minutes = 0, hours = 0, format = 'h:mm:ssa')
-{
+Generate.Time = function(seconds = 0, minutes = 0, hours = 0, format = 'h:mm:ssa') {
     var date = moment();
     date = date.add(hours, "s").add(minutes, "m").add(hours, "h");
 
     return date.format(format);
 }
 
-// Data Structures
-var Page = function(url)
-{
-    this.url = url;
-    this.config = new Map(); // <Config(Key), Boolean>
-}
-
-var Config = function(name)
-{
+var Config = function(name) {
     this.name = name;
-    this.fields = new Map(); // <Field(String), Value(String)>
+    this.pages = [];
+    this.configData = new Map(); // <Field, Config>
+
+    this._searchTerm = "";
 }
 
-// Utilities
-function deserialize(name, def)
-{
-    return eval(GM_getValue(name, (def || '({})')));
+Config.prototype.pageExists = function(page) {
+    return _.contains(page, this._searchTerm);
 }
 
-function serialize(name, val)
-{
-    GM_setValue(name, uneval(val));
+Config.prototype.addPage = function(url) {
+    this.pages.push(url);
 }
 
-var input = {};
-input["text"] = function(field) 
-{ 
+// Testing Purposes
+var config = new Config("Test");
+config.addPage("Test");
+config.addPage("Test");
 
-};
+config._searchTerm = "Test";
+console.log(config.pages.find(function (o) { return o === config._searchTerm; }));
+console.log(_.find(config.pages, function (o) { return o === config._searchTerm; }));
 
-input["password"] = function(field) // This is such a bad idea :c
-{ 
+// // Data Structures
+// var AutoFieldConfig = function()
+// {
+//     this.pages = new Map(); // <URL(String), Object>
+//     this.configs = new Map();      // <Name(String), Object>
+// }
+
+// AutoFieldConfig.prototype.addPage = function(url)
+// {
+//     // Check if Page exists
+//     if(_.indexOf(this.pages))
+//     var page = new Page(url)
+
+//     this.pages.push(page);
+//     return page;
+// }
+
+// var Page = function(url)
+// {
+//     this.url = url;
+//     this.config = new Map(); // <Config(Key), Boolean>
+// }
+
+// var Config = function(name)
+// {
+//     this.name = name;
+//     this.fields = new Map(); // <Field(String), Value(String)>
+// }
+
+// // Utilities
+// function deserialize(name, def)
+// {
+//     return eval(GM_getValue(name, (def || '({})')));
+// }
+
+// function serialize(name, val)
+// {
+//     GM_setValue(name, uneval(val));
+// }
+
+// var input = {};
+// input["text"] = function(field) 
+// { 
+
+// };
+
+// input["password"] = function(field) // This is such a bad idea :c
+// { 
     
-};
+// };
 
-input["number"] = function(field) 
-{ 
+// input["number"] = function(field) 
+// { 
     
-};
+// };
 
-input["radio"] = function(field) 
-{ 
+// input["radio"] = function(field) 
+// { 
     
-};
+// };
 
-input["checkbox"] = function(field) 
-{ 
+// input["checkbox"] = function(field) 
+// { 
     
-};
+// };
 
-input["select"] = function(field) 
-{ 
+// input["select"] = function(field) 
+// { 
     
-};
+// };
 
-input["textarea"] = function(field) 
-{ 
+// input["textarea"] = function(field) 
+// { 
     
-};
+// };
 
 // document.addEventListener('keydown', (event) => 
 // {
