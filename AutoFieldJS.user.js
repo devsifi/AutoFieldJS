@@ -15,255 +15,229 @@
 // @require     https://code.jquery.com/jquery-3.2.1.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js
-// @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.5.0/jquery.contextMenu.min.js
-// @require     https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.5.0/jquery.ui.position.min.js
-// @resource    jqueryContextMenuCSS https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.5.0/jquery.contextMenu.min.css
 // ==/UserScript==
 
-// Value Generation
-function generateChar() {
-    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz';
-    return chars.charAt(Math.floor(Math.random() * chars.length));
-}
+/*
 
-function generateString(length) {
-    var str = '';
-    for(var i = 0; i < length; i++) {
-        str += Generate.char();
+    Issues Encountered:
+     - JS Maps do not work, they do not de/serialize, Custom objects however work (But a hassle to deal with)
+
+*/
+
+const AUTOFIELD_CSS = `
+    #autofield-overlay {
+        position: fixed;                    /* Sit on top of the page content */
+        display: none;                      /* Hidden by default */
+        width: 100%;                        /* Full width (cover the whole page) */
+        height: 100%;                       /* Full height (cover the whole page) */
+        top: 0; 
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);  /* Black background with opacity */
+        z-index: 999999;                    /* Specify a stack order in case you're using a different order for other */
     }
 
-    return str;
-}
-
-function generateDate(days = 0, months = 0, years = 0, format = 'DD-MM-YYYY') {
-    var date = moment();
-    date = date.add(days, 'd').add(months, 'M').add(years, 'y');
-
-    return date.format(format);
-}
-
-function generateTime(seconds = 0, minutes = 0, hours = 0, format = 'h:mm:ssa') {
-    var date = moment();
-    date = date.add(hours, 's').add(minutes, 'm').add(hours, 'h');
-
-    return date.format(format);
-}
-
-// Classes/Prototypes/Objects
-// Config
-var Config = function(name, data = []) {
-    this.name = name;
-    this._data = data;
-}
-
-Config.prototype.getField = function(fieldName) {
-    return _.find(this._data, function(o) {
-        return o.field == fieldName;
-    });
-}
-
-Config.prototype.fieldExists = function(fieldName) {
-    return (this.getField(fieldName) != undefined);
-}
-
-Config.prototype.addField = function(fieldName, value) {
-    if(!this.fieldExists(fieldName)) {
-        this._data.push({
-            field: fieldName,
-            value: value
-        });
-    } else {
-        console.warn('AutoFieldJS: Field \'' + fieldName + '\' in Config \'' + this.name + '\'' + ' already exists');
-    }
-}
-
-Config.prototype.removeField = function(fieldName) {
-    this._data = _.without(this._data, this.getField(fieldName));
-}
-
-var PageConfig = function(url, data = []) {
-    this.url = url;
-    this._data = data;
-}
-
-// PageConfig
-PageConfig.prototype.getField = function(configName) {
-    return _.find(this._data, function(o) {
-        return o.configName == configName;
-    });
-}
-
-PageConfig.prototype.fieldExists = function(configName) {
-    return (this.getField(configName) != undefined);
-}
-
-PageConfig.prototype.addConfig = function(configName, enabled = true) {
-    if(!this.fieldExists(configName)) {
-        this._data.push({
-            configName: configName,
-            enabled: enabled
-        });
-    } else {
-        console.warn('AutoFieldJS: Config \'' + configName + '\' in PageConfig \'' + this.url + '\'' + ' already exists');
-    }
-}
-
-// Serialization (Saving Data into GM)
-function deserialize(name, def) {
-  return eval(GM_getValue(name, (def || '({})')));
-}
-
-function serialize(name, val) {
-  GM_setValue(name, uneval(val));
-}
-
-function clearAllData() {
-    if(confirm('Are you sure you want to wipe everything (configs, page configs)?')) {
-        _.each(GM_listValues(), GM_deleteValue);
-    }
-}
-
-function saveConfig(config) {
-    serialize(config.name, config);
-}
-
-function loadConfig(configName) {
-    var config = deserialize(config);
-    if(_.isEmpty(config)) {
-        console.warn('Config \'' + configName + '\' does not exists, creating an empty config');
-        config = new Config(configName);
-        saveConfig(config);
-    } else {
-        console.log('Loaded Config \'' + configName + '\'');
-    }
-
-    return config;
-}
-
-function savePageConfig(pageConfig) {
-    serialize(pageConfig.url, pageConfig);
-}
-
-function loadPageConfig(pageConfigName) {
-    var pageConfig = deserialize(pageConfigName);
-    if(_.isEmpty(pageConfig)) {
-        console.warn('PageConfig \'' + pageConfigName + '\' does not exists, creating an empty page config for \'' + pageConfigName + '\'');
-        pageConfig = new PageConfig(pageConfigName);
-        savePageConfig(pageConfig);
-    } else {
-        console.log('Loaded PageConfig \'' + pageConfigName + '\'');
-    }
-
-    return pageConfig;
-}
-
-// Setup
-
-// Setup Overlay UI
-GM_addStyle(`
-    body {
-        position: relative;
-    }
-
-    .autofield-overlay {
-        display: none;
-        position:absolute;
-        z-index: 999999;
-        overflow:auto;
-        width:100%;
-        height:100%;
-        top: 0px;
-        left: 0px;
-        background: rgba(0, 0, 0, 0.33);
-    }
-
-    .autofield-config-container:hover {
-        background: black;  
-    }
-
-    .autofield-config-container {
-        position:fixed;
-        display: flex;
-        padding: 50px;
+    #autofield-overlay-container {
+        position: fixed;
+        width: 80%;
+        padding: 10px;
         top: 50%;
         left: 50%;
-        width: 600px;
-        transform: translateX(-50%) translateY(-50%);
         border-radius: 20px;
+        transform: translateX(-50%) translateY(-50%);
         background: white;
     }
 
-    .autofield-config-aside {
-        display: block; 
-        background: grey;
+    #autofield-header {
+        width: 100%;
+        height: 100px;
     }
 
-    .autofield-config-content {
-        background: black;
+    #autofield-title {
+        position: absolute;
+        top: 20px;
+        left: 50px;
+
+        font-weight: bold;
     }
 
-    .autofield-overlay-enabled {
-        display: block;
+    #autofield-page-url {
+        width: 100%;
+        height: 100px;
+        line-height: 100px;
+        text-align: center;
+        vertical-align: middle;
+
+        font-size: 24px;
     }
-`);
-var autoFieldOverlay = $('<div>', {class:'autofield-overlay'});
-var autoFieldConfigManager = $(`
-    <div class="autofield-config-container">
-        <div class="autofield-config-aside"></div>
-        <div class="autofield-config-content"></div>
-    </div>
-`);
 
-if ($(document).height() <= $(window).height()) // Might break resize events on browser, not sure
-{
-    $(window).on("resize", function(){
-        var win = $(this);
-        autoFieldOverlay.height(win.height());
-    });
+    #autofield-subcontainer {
+        display:flex;
+        padding: 10px;
+        height: 400px;
+        border: 1px dotted black;
+    }
 
-    $(window).trigger("resize");
+    #autofield-aside {
+        width: 250px;
+        height: 100%;
+        background: #D1DBBD;
+    }
+
+    #autofield-subcontainer-content {
+        width: 100%;
+        height: 100%;
+        overflow-y: scroll;
+        background: #FCFFF5;
+    }
+
+    .test {
+        height: 100px;
+        color: white;
+    }
+`;
+
+const PAGE    = 'Page';
+const CONFIG  = 'Config';
+
+var Utils = {
+    url: function() {
+        var query = (window.location.href).indexOf("?");
+        if (query >= 0)
+            return (window.location.href.substring(0, query)).toLowerCase();
+        else
+            return window.location.href.toLowerCase();
+    },
+
+    deserialize: function(name, def) { return eval(GM_getValue(name, (def || '({})'))); },
+    serialize:  function(name, val) { GM_setValue(name, uneval(val)); }
 }
 
-$('body').append(autoFieldOverlay);
-autoFieldOverlay.append(autoFieldConfigManager);
-
-// Setup Context Menu
-GM_addStyle(GM_getResourceText('jqueryContextMenuCSS'));
-$.contextMenu({
-    selector: 'input', 
-    callback: function(key, options) {
-        var m = "clicked: " + key;
-        window.console && console.log(m) || alert(m); 
+var Generate = {
+    char: function() { 
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz';
+        return chars.charAt(Math.floor(Math.random() * chars.length)); 
     },
-    items: {
-        'add' : {
-            name:       'Add Config',
-            visible:    function(key, opt) {
-                return true;
-            },
-            callback:   function(itemKey, opt) {
-                console.log(opt.$trigger);
-            }
-        },
-        'edit' : {
-            name:       'Edit Config',
-            visible:    function(key, opt) {
-                return false;
-            },
-            callback:   function(itemKey, opt) {
-                console.log(opt.$trigger);
-            }
-        }
-    }
-});
 
-// Logic
-document.addEventListener('keydown', (event) => 
-{
-    switch(event.code) 
-    {
-        case "F1":
-        $(".autofield-overlay").toggleClass("autofield-overlay-enabled");
-        break;
+    string: function(length) {
+        var str = '';
+        for(var i = 0; i < length; i++) {
+            str += Generate.char();
+        }
+        return str;
+    },
+
+    date: function(days = 0, months = 0, years = 0, format = 'DD-MM-YYYY') {
+        var date = moment();
+        date = date.add(days, 'd').add(months, 'M').add(years, 'y');
+        return date.format(format);
+    },
+
+    time: function(seconds = 0, minutes = 0, hours = 0, format = 'h:mm:ssa') {
+        var date = moment();
+        date = date.add(hours, 's').add(minutes, 'm').add(hours, 'h');
+        return date.format(format);
     }
+};
+
+function Page(url, data = []) {
+    return {
+        url:  url,
+        data: data, //<ConfigName, Enabled>
+    };
+};
+
+function PageData(name, enabled) {
+    return {
+        name: name,
+        enabled: enabled
+    };
+}
+
+function Config(name, data = []) {
+    return {
+        name: name,
+        data: data, //<Field, Value>
+    };
+};
+
+// Wrapping utils class, wrap much?
+var AutoFieldDb = {
+    get: function(key) {
+        var config = Utils.deserialize(key);
+        if(_.isEmpty(config))
+            return [];  //No config(s) exists, returning empty array instead
+        else
+            return config;
+    },
+
+    save: function(key, obj) {
+        if(_.isArray(obj)) {
+            Utils.serialize(key, obj);
+        }
+    },
+
+    clear: function(key) { if(window.confirm('Are you sure you want to delete data for \'' + key + '\'')) _.each(GM_listValues(), GM_deleteValue); },
+    clearAll: function() { if(window.confirm('Are you sure you want to delete everything?')) GM_deleteValue(key); },
+}
+
+function ConfigData(field, value) {
+    return {
+        field: field,
+        value: value
+    };
+}
+
+$(document).ready(function() {
+
+    // Setup UI
+    GM_addStyle(AUTOFIELD_CSS);
+    var body = $('body');
+    var overlay = $('<div>', { id: 'autofield-overlay' });
+    // var container = $('<div>', { id: 'autofield-overlay-container' });
+    var container = $(`
+        <div id="autofield-overlay-container">
+            <div id="autofield-header">
+                <div id="autofield-title">
+                    AutoFieldJS
+                </div>
+                <div id="autofield-page-url">[INSERT URL HERE]</div>
+            </div>
+            <div id='autofield-subcontainer'>
+                <div id='autofield-aside'>
+                    <div class="autofield-sidebar">Home</div>
+                    <div class="autofield-sidebar">All Configs</div>
+                </div>
+                <div id="autofield-subcontainer-content">
+                </div>
+            </div>
+        </div>
+    `);
+
+    body.append(overlay);
+    overlay.append(container);
+
+    $('#autofield-page-url').html(Utils.url());
+
+    var page = AutoFieldDb.get(PAGE);
+
+    // // Logic
+    document.addEventListener('keydown', (event) => 
+    {
+        switch(event.code) 
+        {
+            case "F1": // F1 does not work in Chrome :/
+            overlay.fadeToggle('fast');
+            break;
+
+            case "F2":
+            overlay.fadeToggle('fast');
+            break;
+
+            case "F9":
+            AutoFieldDb.clearAll();
+            break;
+        }
+    });
 });
