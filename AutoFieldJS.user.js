@@ -228,6 +228,15 @@ const AUTOFIELD_CSS = `
     .autofield-highlight {
         box-shadow: 0px 0px 5px #000 !important;
     }
+
+    .autofield {
+        margin: 0;
+        padding: 0;
+        border: 1px solid grey !important;
+        font-size: 100%;
+        font: inherit;
+        vertical-align: baseline;
+    }
 `;
 
 const AUTOFIELD_CONTAINER_HTML = `
@@ -236,32 +245,27 @@ const AUTOFIELD_CONTAINER_HTML = `
         <h3 id="autofield-url" style="text-align:center;"></h3><hr>
         <div id="autofield-main" class="autofield-flex autofill-window">
             <div id="autofield-launcher-config">
-                <button id="autofield-new-config-btn">New Config</button>
-                <button id="autofield-load-config-btn">Load Config</button>
+                <button class="autofield" id="autofield-new-config-btn">New Config</button>
+                <button class="autofield" id="autofield-load-config-btn">Load Config</button>
                 <hr>
-                <button id="autofield-import-config-btn">Import Config</button>
-                <button id="autofield-export-config-btn">Export Config</button>
-                <button id="autofield-delete-config-btn">Delete Config</button>
+                <button class="autofield" id="autofield-export-config-btn">Export Config</button>
+                <button class="autofield" id="autofield-delete-config-btn">Delete Config</button>
             </div>
             <div id="autofield-config-settings" class="autofill-window">
-                <h3 id="autofield-config-name">Current Config: <input type="text" disabled readonly></h3>
+                <h3 id="autofield-config-name">Current Config: <input class="autofield" type="text" disabled readonly></h3>
                 <p style="text-align: center;">
-                    <button id="autofield-add-field-btn" disabled>Add Field</button>
-                    <button id="autofield-save-config-btn" disabled>Save</button>
-                    <button id="autofield-run-config-btn" disabled>Run Config</button>
+                    <button class="autofield" id="autofield-add-field-btn" disabled>Add Field</button>
+                    <button class="autofield" id="autofield-save-config-btn" disabled>Save</button>
+                    <button class="autofield" id="autofield-run-config-btn" disabled>Run Config</button>
                 </p>
                 <div id="autofield-field-item-list">
-                    <div class="autofield-field-item">
-                        <label>Foo</label>
-                        <input type="text">
-                    </div>
                 </div>
             </div>
         </div>
         <div id="autofield-new-config" class="autofill-window">
             <h3>Please enter name for new config</h3>
-            <p><input type="text" id="autofield-new-config-name"></p>
-            <p><button id="autofield-create-config-btn">Create</button></p>
+            <p><input type="text" id="autofield-new-config-name" class="autofield"></p>
+            <p><button class="autofield" id="autofield-create-config-btn">Create</button></p>
         </div>
         <div id="autofield-load-config" class="autofill-window">
             <h3>Please select config to load</h3>
@@ -283,6 +287,13 @@ var currentConfig = '';
 
 function getURL() {
     return Utils.url() + '#' + currentConfig;
+}
+
+function configCheckFieldExists(name)  {
+    var page = AutoFieldDb.get(getURL());
+    return _.find(page.data, function(item) {
+        return item.field == name;
+    }) == undefined;
 }
 
 function reloadUI() {
@@ -352,6 +363,7 @@ function loadConfig(name)  {
             var item = $('<div>', { class: 'autofield-field-item' });
             item.append($('<label>' + config.field + '</label>'));
             item.append($('<input>', {
+                class: 'autofield',
                 type: 'text',
                 value: config.value
             }));
@@ -422,29 +434,34 @@ function upload(callback) {
 }
 
 function promptSelection() {
-    $('#autofield-container').fadeToggle('fast');
-    $('#autofield-overlay').addClass('autofield-clickthrough');
-    $('input[name]:not(:checkbox, :radio), textarea[name]').addClass('autofield-highlight');
+    if($('input[name]:not(:checkbox, :radio), textarea[name]').length > 0) {
+        $('#autofield-container').fadeOut('fast');
+        $('#autofield-overlay').addClass('autofield-clickthrough');
+        $('input[name]:not(:checkbox, :radio), textarea[name]').addClass('autofield-highlight');
 
-    // Prompt Selection
-    $('input[name]:not(:checkbox, :radio), textarea[name]').on('mousedown', function(e) {
-        e.preventDefault();
-        $(this).blur();
-        window.focus();
+        // Prompt Selection
+        $('input[name]:not(:checkbox, :radio), textarea[name]').on('click', function(e) {
+            e.preventDefault();
+            $(this).blur();
+            window.focus();
 
-        var page = AutoFieldDb.get(getURL());
-        page.data.push(PageData($(this).attr('name'), ''));
+            if(configCheckFieldExists($(this).attr('name'))) {
+                var page = AutoFieldDb.get(getURL());
+                page.data.push(PageData($(this).attr('name'), ''));
+                AutoFieldDb.save(getURL(), page);
+            }
 
-        AutoFieldDb.save(getURL(), page);
+            $('#autofield-container').fadeIn('fast');
+            $('#autofield-overlay').removeClass('autofield-clickthrough');
+            $('input[name]:not(:checkbox, :radio), textarea[name]').removeClass('autofield-highlight');
 
-        $('#autofield-container').fadeToggle('fast');
-        $('#autofield-overlay').removeClass('autofield-clickthrough');
-        $('input[name]:not(:checkbox, :radio), textarea[name]').removeClass('autofield-highlight');
+            $(this).off('click');
 
-        $(this).off('mousedown');
-
-        loadConfig(currentConfig);
-    });
+            loadConfig(currentConfig);
+        });
+    } else {
+        alert('Nothing to configure in this page');
+    }
 }
 
 function generate(input) {
@@ -548,6 +565,8 @@ function getExpression(str) { // String should be formatted like this [Expressio
 
 $(document).ready(function() {
 
+    //$('#autofield-container *').removeAttr('style');
+
     // Setup UI
     GM_addStyle(AUTOFIELD_CSS);
     var body = $('body');
@@ -601,9 +620,10 @@ $(document).ready(function() {
         } else {
             currentConfig = name;
             var page = Page(Utils.url(), name);
+            console.log(page, getURL());
             AutoFieldDb.save(getURL(), page);
             $('#autofield-new-config-name').val('');
-            reloadUI();
+            loadConfig(name);
         }
     });
 
@@ -634,6 +654,7 @@ $(document).ready(function() {
         var page = AutoFieldDb.get(getURL());
         _.each(page.data, function(item) {
             var elem = $('[name="' + item.field + '"]')[0];
+            console.log(item.value);
             $(elem).val(generate(item.value));
         });
     });
