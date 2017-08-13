@@ -24,9 +24,6 @@
 
 */
 
-// console.log(GM_listValues());
-// _.each(GM_listValues(), GM_deleteValue);
-
 var Utils = {
     url: function() {
         var url = window.location.href;
@@ -313,23 +310,13 @@ function reloadUI() {
     showWindow('#autofield-main');
 }
 
-/*
-    <div class="autofield-config-item">
-        <h3>ConfigName goes here</h3>
-        <button id="autofield-load-config">Load Config</button>
-    </div>
-*/
-
 function listConfigs(url) {
     var keys = GM_listValues();
     var arr = _.filter(keys, item => item.indexOf(url >= 0));
-
+    
     $('#autofield-config-item-list').html('');
-
     _.each(arr, function(pageKey) {
-
         var page = AutoFieldDb.get(pageKey);
-
         var item = $('<div>', { class: 'autofield-config-item' });
         var button = $('<button>', { class: 'autofield-load-config' });
         
@@ -337,8 +324,6 @@ function listConfigs(url) {
         button.click(function() {
             loadConfig(page.name);
         });
-    
-        console.log(page);
 
         item.append($('<h3>' + page.name + '</h3>'));
         item.append(button);
@@ -346,18 +331,11 @@ function listConfigs(url) {
     });
 }
 
-/*
-    <div class="autofield-field-item">
-        <label>Foo</label>
-        <input type="text">
-    </div>
-*/
 function loadConfig(name)  {
     currentConfig = name;
     var page = AutoFieldDb.get(getURL());
 
     if(!_.isEmpty(page)) {
-        // load fields
         $('#autofield-field-item-list').html('');
         _.each(page.data, function(config) {
             var item = $('<div>', { class: 'autofield-field-item' });
@@ -367,7 +345,6 @@ function loadConfig(name)  {
                 type: 'text',
                 value: config.value
             }));
-
             $('#autofield-field-item-list').append(item);
         });
     }
@@ -378,7 +355,7 @@ function loadConfig(name)  {
 function toggleLauncher() {
     $('#autofield-container').fadeToggle('fast', function() {
         $('#autofield-overlay').fadeToggle('fast');
-        showWindow('#autofield-main');
+        showWindow('#autofield-main'); //Reset state to main window
     });
 }
 
@@ -455,7 +432,7 @@ function promptSelection() {
             $('#autofield-overlay').removeClass('autofield-clickthrough');
             $('input[name]:not(:checkbox, :radio), textarea[name]').removeClass('autofield-highlight');
 
-            $(this).off('click');
+            $('input[name]:not(:checkbox, :radio), textarea[name]').off('click');
 
             loadConfig(currentConfig);
         });
@@ -660,7 +637,8 @@ $(document).ready(function() {
     });
 
     $('#autofield-delete-config-btn').click(function() {
-        alert('Not implemented!');
+        GM_deleteValue(getURL().toUpperCase());
+        loadConfig('');
     });
 
     loadConfig('');
