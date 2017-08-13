@@ -64,7 +64,7 @@ var Utils = {
 }
 var Generate = {
     char: function() { 
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz';
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         return chars.charAt(Math.floor(Math.random() * chars.length)); 
     },
 
@@ -110,7 +110,7 @@ var AutoFieldDb = {
     get: function(key) {
         var config = Utils.deserialize(key.toUpperCase());
         if(_.isEmpty(config))
-            return Page(Utils.url());  //No config(s) exists, returning empty array instead
+            return null;
         else
             return config;
     },
@@ -118,9 +118,6 @@ var AutoFieldDb = {
     save: function(key, obj) {
         Utils.serialize(key.toUpperCase(), obj);
     },
-
-    clear: function(key) { if(window.confirm('Are you sure you want to delete data for \'' + key + '\'')) _.each(GM_listValues(), GM_deleteValue); },
-    clearAll: function() { if(window.confirm('Are you sure you want to delete everything?')) GM_deleteValue(key); },
 }
 
 const AUTOFIELD_CSS = `
@@ -198,6 +195,7 @@ const AUTOFIELD_CSS = `
     }
 
     #autofield-delete-config-btn {
+        color: white;
         background: firebrick;
     }
 
@@ -227,12 +225,26 @@ const AUTOFIELD_CSS = `
     }
 
     .autofield {
-        margin: 0;
-        padding: 0;
-        border: 1px solid grey !important;
-        font-size: 100%;
-        font: inherit;
-        vertical-align: baseline;
+        all:unset;
+    }
+
+    button.autofield {
+        padding: 5px 10px;
+        text-align: center;
+    }
+
+    button.autofield:hover {
+        cursor: pointer;
+    }
+
+    input.autofield, button.autofield {
+        border: 1px solid grey;
+        background: white;
+    }
+
+    input.autofield:disabled, button.autofield:disabled {
+        opacity: 0.4;
+        cursor: unset;
     }
 `;
 
@@ -318,7 +330,7 @@ function listConfigs(url) {
     _.each(arr, function(pageKey) {
         var page = AutoFieldDb.get(pageKey);
         var item = $('<div>', { class: 'autofield-config-item' });
-        var button = $('<button>', { class: 'autofield-load-config' });
+        var button = $('<button>', { id: 'autofield-load-config', class:'autofield' });
         
         button.html('Load Config');
         button.click(function() {
@@ -335,8 +347,9 @@ function loadConfig(name)  {
     currentConfig = name;
     var page = AutoFieldDb.get(getURL());
 
+    $('#autofield-field-item-list').html('');
+
     if(!_.isEmpty(page)) {
-        $('#autofield-field-item-list').html('');
         _.each(page.data, function(config) {
             var item = $('<div>', { class: 'autofield-field-item' });
             item.append($('<label>' + config.field + '</label>'));
