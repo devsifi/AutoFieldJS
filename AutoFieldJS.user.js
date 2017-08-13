@@ -3,8 +3,7 @@
 // @namespace   devsfiq
 // @description Configurable Automation
 // @include     *
-// @version     0.0.1
-// @grant       unsafeWindow
+// @version     0.0.2
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // @grant       GM_getResourceURL
@@ -23,6 +22,105 @@
      - JS Maps do not work, they do not de/serialize, Custom objects however work (But a hassle to deal with)
 
 */
+
+// Default Stylings
+GM_addStyle(`
+    #autofield-overlay {
+        position: fixed;                    /* Sit on top of the page content */
+        width: 100%;                        /* Full width (cover the whole page) */
+        height: 100%;                       /* Full height (cover the whole page) */
+        top: 0; 
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);  /* Black background with opacity */
+        z-index: 999998;                    /* Specify a stack order in case you're using a different order for other */
+    }
+
+    #autofield-overlay-container {
+        position: absolute;
+        width: 1000px;
+        height: 600px;
+        left: 50%;
+        top: 50%;
+        transform: translateX(-50%) translateY(-50%);
+        border-radius: 20px;
+        background: white;
+        z-index: 999999; 
+    }
+
+    #autofield-overlay-container > div {
+        position: relative;
+        width: 100%;
+        height: 500px;
+        overflow: auto;
+        margin-top: 80px;
+        padding: 10px 20px;
+    }
+
+    .autofield {
+        all: unset;
+    }
+
+    button.autofield {
+        padding: 5px 10px;
+        text-align: center;
+    }
+
+    button.autofield:hover {
+        cursor: pointer;
+    }
+
+    input.autofield, button.autofield {
+        border: 1px solid grey;
+        background: white;
+    }
+
+    input.autofield:disabled, button.autofield:disabled {
+        opacity: 0.4;
+        cursor: unset;
+    }
+
+    p.autofield {
+        display: block;
+        margin-top: 1em;
+        margin-bottom: 1em;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    h1.autofield {
+        display: block;
+        font-size: 2em;
+        margin-top: 0.67em;
+        margin-bottom: 0.67em;
+        margin-left: 0;
+        margin-right: 0;
+        font-weight: bold;
+    }
+
+    a.close {
+        float:right;
+        margin-top:30px;
+        margin-right:30px;
+        cursor:pointer;
+        color: #fff;
+        border: 1px solid #AEAEAE;
+        border-radius: 30px;
+        background: #605F61;
+        font-size: 31px;
+        font-weight: bold;
+        display: inline-block;
+        line-height: 0px;
+        padding: 11px 3px;       
+    }
+    
+    .close:before {
+        content: "×";
+    }
+`);
+
+// Core Functions
 
 var Utils = {
     url: function() {
@@ -62,6 +160,7 @@ var Utils = {
     deserialize: function(name, def) { return eval(GM_getValue(name, (def || '({})'))); },
     serialize:  function(name, val) { GM_setValue(name, uneval(val)); }
 }
+
 var Generate = {
     char: function() { 
         var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -105,7 +204,7 @@ function PageData(field, value, enabled = true) {
     };
 }
 
-// Wrapping utils class, wrap much?
+// Simplifying Core code for this userscript
 var AutoFieldDb = {
     get: function(key) {
         var config = Utils.deserialize(key.toUpperCase());
@@ -120,540 +219,102 @@ var AutoFieldDb = {
     },
 }
 
-const AUTOFIELD_CSS = `
-    #autofield-overlay {
-        position: fixed;                    /* Sit on top of the page content */
-        display: none;                      /* Hidden by default */
-        width: 100%;                        /* Full width (cover the whole page) */
-        height: 100%;                       /* Full height (cover the whole page) */
-        top: 0; 
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0,0,0,0.5);  /* Black background with opacity */
-        z-index: 999998;                    /* Specify a stack order in case you're using a different order for other */
+// UI Functions (To make life easier)
+
+function createOverlay(html = null) {
+    if($('#autofield-overlay').length == 0) { 
+        var overlay = $('<div>', { id: 'autofield-overlay' });
+        var overlayContainer = $('<div>', { id: 'autofield-overlay-container'});
+        var closeBtn = $('<a>', { class: 'close'});
+        closeBtn.click(closeOverlay);
+        overlay.append(overlayContainer);
+        overlayContainer.append(closeBtn);
+        if(html != null)
+            overlayContainer.append($(html));
+        $('body').append(overlay);
+        return true;
+    } else {
+        console.warn('Overlay already exists');
+        return false; //Failed to create overlay
     }
+}
 
-    #autofield-launcher {
-        position: fixed;                    /* Sit on top of the page content */
-        width: 50px;
-        height: 50px;
-        left: 50px;
-        bottom: 50px;
-        border-radius: 50%;
-        background-color: black;
-        z-index: 999999;                    /* Specify a stack order in case you're using a different order for other */
+function closeOverlay() {
+    var overlay = $('#autofield-overlay');
+    if(overlay.length > 0) {
+        overlay.remove();
     }
+}
 
-    #autofield-container {
-        display: none;
-        position: absolute;
-        width: 60%;
-        left: 50%;
-        top: 30px;
-        padding: 20px 10px;
-        transform: translateX(-50%);
-        border-radius: 20px;
-        background: white;
-        z-index: 999999;
-    }
-
-    #autofield-container.autofill-window {
-        display: none;
-    }
-
-    #autofield-launcher-config {
-        display: flex;
-        flex-direction: column;
-        width: 40%; 
-        margin-left: 30px;
-        background:lightgrey;
-    }
-
-    #autofield-launcher-config button {
-        flex: 1;
-        min-height: 50px;
-        margin: 5px 0px;
-    }
-
-    #autofield-launcher-config button:first-child, #autofield-launcher-config button:last-child {
-        margin: 0px;
-    }
-
-    #autofield-config-settings button {
-        height: 30px;;
-    }
-
-    #autofield-config-settings {
-        width: 100%;
-        margin: 0px 30px;
-        background: lightgrey;
-    }
-
-    #autofield-config-name {
-        text-align: center;
-    }
-
-    #autofield-delete-config-btn {
-        color: white;
-        background: firebrick;
-    }
-
-    #autofield-new-config {
-        text-align: center;
-    }
-
-    #autofield-launcher:hover {
-        cursor: pointer;
-        background: lightgrey;
-    }
-
-    .autofield-config-item {
-        background: lightgrey;
-    }
-
-    .autofield-flex {
-        display: flex;
-    }
-
-    .autofield-clickthrough {
-        pointer-events: none;
-    }
-
-    .autofield-highlight {
-        box-shadow: 0px 0px 5px #000 !important;
-    }
-
-    .autofield {
-        all:unset;
-    }
-
-    button.autofield {
-        padding: 5px 10px;
-        text-align: center;
-    }
-
-    button.autofield:hover {
-        cursor: pointer;
-    }
-
-    input.autofield, button.autofield {
-        border: 1px solid grey;
-        background: white;
-    }
-
-    input.autofield:disabled, button.autofield:disabled {
-        opacity: 0.4;
-        cursor: unset;
-    }
-`;
-
-const AUTOFIELD_CONTAINER_HTML = `
-    <div id="autofield-container">
-        <h1 style="text-align:center;">AutoFieldJS</h1><hr>
-        <h3 id="autofield-url" style="text-align:center;"></h3><hr>
-        <div id="autofield-main" class="autofield-flex autofill-window">
-            <div id="autofield-launcher-config">
-                <button class="autofield" id="autofield-new-config-btn">New Config</button>
-                <button class="autofield" id="autofield-load-config-btn">Load Config</button>
-                <hr>
-                <button class="autofield" id="autofield-export-config-btn">Export Config</button>
-                <button class="autofield" id="autofield-delete-config-btn">Delete Config</button>
-            </div>
-            <div id="autofield-config-settings" class="autofill-window">
-                <h3 id="autofield-config-name">Current Config: <input class="autofield" type="text" disabled readonly></h3>
-                <p style="text-align: center;">
-                    <button class="autofield" id="autofield-add-field-btn" disabled>Add Field</button>
-                    <button class="autofield" id="autofield-save-config-btn" disabled>Save</button>
-                    <button class="autofield" id="autofield-run-config-btn" disabled>Run Config</button>
-                </p>
-                <div id="autofield-field-item-list">
-                </div>
-            </div>
-        </div>
-        <div id="autofield-new-config" class="autofill-window">
-            <h3>Please enter name for new config</h3>
-            <p><input type="text" id="autofield-new-config-name" class="autofield"></p>
-            <p><button class="autofield" id="autofield-create-config-btn">Create</button></p>
-        </div>
-        <div id="autofield-load-config" class="autofill-window">
-            <h3>Please select config to load</h3>
-            <div id="autofield-config-item-list">
-            </div>
-        </div>
-    </div>
-`;
-
-// Logic/Functions/Variables
-
-const WINDOWS = [
-    '#autofield-main',
-    '#autofield-new-config',
-    '#autofield-load-config'
-];
+// Logic
 
 var currentConfig = '';
 
-function getURL() {
-    return Utils.url() + '#' + currentConfig;
-}
+// createOverlay(`
+//     <div style="background:cyan">
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//         <h1 class="autofield">asa</h1>
+//     </div>
+// `);
 
-function configCheckFieldExists(name)  {
-    var page = AutoFieldDb.get(getURL());
-    return _.find(page.data, function(item) {
-        return item.field == name;
-    }) == undefined;
-}
-
-function reloadUI() {
-    $('#autofield-url').html(Utils.url());
-    $('#autofield-config-name input').val(currentConfig);
-
-    if(currentConfig != '') {
-        $('#autofield-add-field-btn').removeAttr('disabled');
-        $('#autofield-save-config-btn').removeAttr('disabled');
-        $('#autofield-run-config-btn').removeAttr('disabled');
-    } else {
-        $('#autofield-add-field-btn').attr('disabled', 'disabled');
-        $('#autofield-save-config-btn').attr('disabled', 'disabled');
-        $('#autofield-run-config-btn').attr('disabled', 'disabled');
-    }
-
-    showWindow('#autofield-main');
-}
-
-function listConfigs(url) {
-    var keys = GM_listValues();
-    var arr = _.filter(keys, item => item.indexOf(url >= 0));
-    
-    $('#autofield-config-item-list').html('');
-    _.each(arr, function(pageKey) {
-        var page = AutoFieldDb.get(pageKey);
-        var item = $('<div>', { class: 'autofield-config-item' });
-        var button = $('<button>', { id: 'autofield-load-config', class:'autofield' });
-        
-        button.html('Load Config');
-        button.click(function() {
-            loadConfig(page.name);
-        });
-
-        item.append($('<h3>' + page.name + '</h3>'));
-        item.append(button);
-        $('#autofield-config-item-list').append(item);
-    });
-}
-
-function loadConfig(name)  {
-    currentConfig = name;
-    var page = AutoFieldDb.get(getURL());
-
-    $('#autofield-field-item-list').html('');
-
-    if(!_.isEmpty(page)) {
-        _.each(page.data, function(config) {
-            var item = $('<div>', { class: 'autofield-field-item' });
-            item.append($('<label>' + config.field + '</label>'));
-            item.append($('<input>', {
-                class: 'autofield',
-                type: 'text',
-                value: config.value
-            }));
-            $('#autofield-field-item-list').append(item);
-        });
-    }
-
-    reloadUI();
-}
-
-function toggleLauncher() {
-    $('#autofield-container').fadeToggle('fast', function() {
-        $('#autofield-overlay').fadeToggle('fast');
-        showWindow('#autofield-main'); //Reset state to main window
-    });
-}
-
-function showWindow(name = WINDOWS[0]) {
-    if(WINDOWS.indexOf(name) == -1)
-        name = WINDOWS[0];
-
-    var arr = WINDOWS.filter(item => item != name); //Items to hide
-    _.each(arr, function(val) {
-        $(val).hide();
-    });
-    $(name).show();
-}
-
-function download(filename, obj) {
-    var hiddenDownloadLink = $('<a>', {
-        style:      'display: none',
-        href:       'data:text/plain;charset=utf-8,' + encodeURIComponent(uneval(obj)),
-        download:   filename
-    });
-
-    $('body').append(hiddenDownloadLink);
-    hiddenDownloadLink[0].click();
-    hiddenDownloadLink.remove();
-}
-
-function upload(callback) {
-    var hiddenFileInput = $('<input>', {
-        style:  'display: none',
-        type:   'file'
-    });
-
-    hiddenFileInput.change(function() {
-        var fileName = $(this).val();
-        var file = $(this)[0].files[0];
-        var result = null;
-        if(file) {
-            var reader = new FileReader();
-            reader.readAsText(file, 'UTF-8');
-            reader.onload = function(e) {
-                 callback(e.target.result);
-            }
-            reader.onerror = function(e) {
-                throw 'Failed to read file "' + fileName + '"';
-            }
-        }
-
-        $(this).remove();
-    });
-
-    $('body').append(hiddenFileInput);
-    hiddenFileInput[0].click();
-}
-
-function promptSelection() {
-    if($('input[name]:not(:checkbox, :radio), textarea[name]').length > 0) {
-        $('#autofield-container').fadeOut('fast');
-        $('#autofield-overlay').addClass('autofield-clickthrough');
-        $('input[name]:not(:checkbox, :radio), textarea[name]').addClass('autofield-highlight');
-
-        // Prompt Selection
-        $('input[name]:not(:checkbox, :radio), textarea[name]').on('click', function(e) {
-            e.preventDefault();
-            $(this).blur();
-            window.focus();
-
-            if(configCheckFieldExists($(this).attr('name'))) {
-                var page = AutoFieldDb.get(getURL());
-                page.data.push(PageData($(this).attr('name'), ''));
-                AutoFieldDb.save(getURL(), page);
-            }
-
-            $('#autofield-container').fadeIn('fast');
-            $('#autofield-overlay').removeClass('autofield-clickthrough');
-            $('input[name]:not(:checkbox, :radio), textarea[name]').removeClass('autofield-highlight');
-
-            $('input[name]:not(:checkbox, :radio), textarea[name]').off('click');
-
-            loadConfig(currentConfig);
-        });
-    } else {
-        alert('Nothing to configure in this page');
-    }
-}
-
-function generate(input) {
-    var re = /\[(.*?)\]/g;
-    var str = input;
-    var extract = str.match(re);
-
-    _.each(extract, function(val, index) {
-        var tmp = removeWhitespace(val);
-
-        console.log(getExpression(tmp));
-        switch(getExpression(tmp).toUpperCase()) {
-            case "STRING": 
-                var param = getParams(val);
-                if(param == null || isNaN(param)) {
-                    param = 10;
-                }
-
-                str = str.replace(val, Generate.string(param));
+$(document).keypress(function(e) {
+    if(e.altKey && e.shiftKey) {
+        switch(e.key) {
+            case '!':
+            // if(currentConfig != '') {
+                var overlay = createOverlay(`
+                    <div>
+                        <h1 class="autofield" style="text-align: center;">` + Utils.url() + '#' + currentConfig + `</h1>
+                        <hr>
+                        <button class="autofield">Run Config</button>
+                        <button class="autofield">Edit Config</button>
+                        <button class="autofield">Delete Config</button>
+                        <hr>
+                        <button class="autofield">Add Field</button>
+                        <div id="autofield-field-list">
+                            <p class="autofield">No field exists</p>
+                        </div>
+                    </div>
+                `);
+            // }
             break;
 
-            case "DATE":
-            var param = removeWhitespace(getParams(val));
-            
-            if(param == null) {
-                param = [0,0,0];
-            }
-
-            if(!_.isArray(param))
-                param = param.split(',');
-
-            var d = parseInt(param[0]);
-            var m = parseInt(param[1]);
-            var y = parseInt(param[2]);
-
-            if(isNaN(d))
-                d = 0;
-
-            if(isNaN(m))
-                m = 0;
-
-            if(isNaN(y))
-                y = 0;
-
-            str = str.replace(val, Generate.date(d, m, y));
+            case '@':
             break;
 
-            case "TIME":
-            var param = removeWhitespace(getParams(val));
-            
-            if(param == null) {
-                param = [0,0,0];
-            }
-
-            if(!_.isArray(param))
-                param = param.split(',');
-
-            var s = parseInt(param[0]);
-            var m = parseInt(param[1]);
-            var h = parseInt(param[2]);
-
-            if(isNaN(s))
-                s = 0;
-
-            if(isNaN(m))
-                m = 0;
-
-            if(isNaN(h))
-                h = 0;
-
-            str = str.replace(val, Generate.time(s, m, h));
+            case '#':
             break;
-        }
-    });
 
-    return str;
-}
+            case '$':
+            break;
 
-function removeWhitespace(str) {
-    try {
-        return str.replace(/ /g,'');
-    } catch(err) {
-        return str; //No whitespace
+            case '(':
+            break;
+
+            case ')':
+            alert('Settings');
+            break;
+        } 
     }
-}
 
-function getParams(str) { // String should be formatted like this (val)
-    var re = /\((.*?)\)/g;
-    var tmp = str.match(re);
-    if(tmp != null)
-        return str.substring(str.indexOf('(') + 1, str.length - 2);
-    else
-        return null;
-}
-
-function getExpression(str) { // String should be formatted like this [Expression(val)]
-    var re = /\((.*?)\)/g;
-    str = str.replace(re, '');
-    return str.substring(1, str.length - 1);
-}
-
-$(document).ready(function() {
-
-    //$('#autofield-container *').removeAttr('style');
-
-    // Setup UI
-    GM_addStyle(AUTOFIELD_CSS);
-    var body = $('body');
-    var overlay = $('<div>', { id: 'autofield-overlay' });
-
-    var launcher = $('<div>', { id: 'autofield-launcher' });
-    launcher.click(toggleLauncher);
-
-    body.append(overlay);
-    body.append($(AUTOFIELD_CONTAINER_HTML));
-    body.append(launcher);
-
-    $('#autofield-new-config-btn').click(function() { showWindow('#autofield-new-config'); });
-    $('#autofield-load-config-btn').click(function() { 
-        listConfigs(Utils.url());
-        showWindow('#autofield-load-config'); 
-    });
-
-    $('#autofield-import-config-btn').click(function() {
-        upload(function(val) {
-            var o = eval(val || '({})');
-
-            if(_.isArray(o)) {
-                _.each(o, function(item) {
-                    AutoFieldDb.save(item.url + '#' + item.name, item);
-                });
-            }
-        });
-    });
-    $('#autofield-export-config-btn').click(function() {
-
-        var arr = [];
-
-        _.each(GM_listValues(), function(val) {
-            var page = Utils.deserialize(val);
-            arr.push(page);
-        });
-
-        download('AutoFieldExportedConfig.txt', arr);
-    });
-
-    /*
-    <p><input type="text" id="autofield-new-config-name"></p>
-    <p><button id="autofield-create-config-btn">Create</button></p>
-    */
-
-    $('#autofield-create-config-btn').click(function() {
-        var name = $('#autofield-new-config-name').val();
-        if(name == '') {
-            alert('Name cannot be null');
-        } else {
-            currentConfig = name;
-            var page = Page(Utils.url(), name);
-            console.log(page, getURL());
-            AutoFieldDb.save(getURL(), page);
-            $('#autofield-new-config-name').val('');
-            loadConfig(name);
-        }
-    });
-
-    $('#autofield-add-field-btn').click(function() {
-        promptSelection();
-    });
-
-    $('#autofield-save-config-btn').click(function() {
-        $('.autofield-field-item').each(function() {
-            var name = $(this).children('label').html();
-            var val = $(this).children('input').val();
-
-            var page = AutoFieldDb.get(getURL());
-            var result = _.find(page.data, function(o) {
-                return o.field == name;
-            });
-            result.value = val;
-
-            AutoFieldDb.save(getURL(), page);
-        });
-    });
-
-    $('#autofield-run-config-btn').click(function() {
-        $('#autofield-save-config-btn').click(); // Saves everything first
-
-        toggleLauncher();
-
-        var page = AutoFieldDb.get(getURL());
-        _.each(page.data, function(item) {
-            var elem = $('[name="' + item.field + '"]')[0];
-            console.log(item.value);
-            $(elem).val(generate(item.value));
-        });
-    });
-
-    $('#autofield-delete-config-btn').click(function() {
-        GM_deleteValue(getURL().toUpperCase());
-        loadConfig('');
-    });
-
-    loadConfig('');
-    reloadUI();
+    if(e.key == 'Escape')
+        closeOverlay();
 });
+
+var page = Page('google.com.sg', 'Test', [new Map()]);
+page.data[0].set('Foo', 'Bar');
+
+console.log(page);
+console.log(uneval(page));
+
+page = Page('google.com.sg', 'Test', [PageData('Foo', 'Bar')]);
+
+console.log(page);
+console.log(uneval(page));
