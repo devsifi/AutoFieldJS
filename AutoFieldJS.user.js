@@ -8,8 +8,8 @@
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // @grant       GM_getResourceURL
-// @grant       GM_getValue 
-// @grant       GM_setValue 
+// @grant       GM_getValue
+// @grant       GM_setValue
 // @grant       GM_deleteValue
 // @grant       GM_listValues
 // @require     https://code.jquery.com/jquery-3.2.1.min.js
@@ -59,11 +59,21 @@ var Utils = {
         return url;
     },
 
-    deserialize: function(name, def) { return eval(GM_getValue(name, (def || '({})'))); },
+    //deserialize: function(name, def) { console.log('deserialize', name, def); return eval(GM_getValue(name, (def || '({})'))); },
+	deserialize: function(name, def) { 
+        if(GM_getValue(name).indexOf('$1') == -1) {
+            return eval(GM_getValue(name, (def || '({})'))); 
+        } else {
+            var result = GM_getValue(name);
+            result = result.substring(result.indexOf('{'), result.lastIndexOf('}') + 1);
+            return JSON.parse(result); 
+        }
+	},
     serialize:  function(name, val) { GM_setValue(name, uneval(val)); }
-}
+};
+
 var Generate = {
-    char: function() { 
+    char: function() {
         var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz';
         return chars.charAt(Math.floor(Math.random() * chars.length)); 
     },
@@ -108,6 +118,7 @@ function PageData(field, value, enabled = true) {
 // Wrapping utils class, wrap much?
 var AutoFieldDb = {
     get: function(key) {
+		debugger;
         var config = Utils.deserialize(key.toUpperCase());
         if(_.isEmpty(config))
             return Page(Utils.url());  //No config(s) exists, returning empty array instead
@@ -116,12 +127,10 @@ var AutoFieldDb = {
     },
 
     save: function(key, obj) {
+		console.log(obj);
         Utils.serialize(key.toUpperCase(), obj);
-    },
-
-    clear: function(key) { if(window.confirm('Are you sure you want to delete data for \'' + key + '\'')) _.each(GM_listValues(), GM_deleteValue); },
-    clearAll: function() { if(window.confirm('Are you sure you want to delete everything?')) GM_deleteValue(key); },
-}
+    }
+};
 
 const AUTOFIELD_CSS = `
     #autofield-overlay {
@@ -311,7 +320,7 @@ function reloadUI() {
 }
 
 function listConfigs(url) {
-    var keys = GM_listValues();
+	var keys = GM_listValues();
     var arr = _.filter(keys, item => item.indexOf(url >= 0));
     
     $('#autofield-config-item-list').html('');
@@ -397,10 +406,10 @@ function upload(callback) {
             reader.readAsText(file, 'UTF-8');
             reader.onload = function(e) {
                  callback(e.target.result);
-            }
+            };
             reader.onerror = function(e) {
                 throw 'Failed to read file "' + fileName + '"';
-            }
+            };
         }
 
         $(this).remove();
@@ -449,7 +458,6 @@ function generate(input) {
     _.each(extract, function(val, index) {
         var tmp = removeWhitespace(val);
 
-        console.log(getExpression(tmp));
         switch(getExpression(tmp).toUpperCase()) {
             case "STRING": 
                 var param = getParams(val);
@@ -597,7 +605,6 @@ $(document).ready(function() {
         } else {
             currentConfig = name;
             var page = Page(Utils.url(), name);
-            console.log(page, getURL());
             AutoFieldDb.save(getURL(), page);
             $('#autofield-new-config-name').val('');
             loadConfig(name);
@@ -631,7 +638,6 @@ $(document).ready(function() {
         var page = AutoFieldDb.get(getURL());
         _.each(page.data, function(item) {
             var elem = $('[name="' + item.field + '"]')[0];
-            console.log(item.value);
             $(elem).val(generate(item.value));
         });
     });
