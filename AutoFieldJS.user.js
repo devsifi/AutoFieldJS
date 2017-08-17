@@ -3,7 +3,7 @@
 // @namespace   devsfiq
 // @description Configurable Automation
 // @include     *
-// @version     0.0.2
+// @version     1.0.0
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // @grant       GM_getResourceURL
@@ -68,6 +68,7 @@ GM_addStyle(`
     }
 
     button.autofield {
+        margin: 0px 5px;
         padding: 5px 10px;
         text-align: center;
     }
@@ -184,8 +185,8 @@ var Utils = {
             url = url.substr(0, url.length - 1);
 
         //Concat String if URL is too long (Maybe not necessary)
-        if(url.length >= 90)
-            url = url.substr(0, 77) + '...';
+        // if(url.length >= 90)
+        //     url = url.substr(0, 77) + '...';
 
         return url;
     },
@@ -386,6 +387,8 @@ function saveConfig(name) {
         page.data.push(PageData(name, value));
     });
 
+    console.log(page);
+
      AutoFieldDb.save(Utils.url() + '#' + name, page);
 }
 
@@ -401,9 +404,8 @@ function cloneConfig(name) {
 function pickField() {
     alert('Please select field you wish to configure');
     closeOverlay();
-    $('input[name][type="text"], input[name][type="number"], textarea[name]').addClass('autofield-glow');
-    $('input[name][type="text"], input[name][type="number"], textarea[name]').click(function() {
-
+    $('input[name][type="text"], input[name][type="number"], textarea[name]').not('[readonly], :disabled').addClass('autofield-glow');
+    $('input[name][type="text"], input[name][type="number"], textarea[name]').not('[readonly], :disabled').click(function() {
         var page = AutoFieldDb.get(Utils.url() + '#' + currentConfig);
         var name = $(this).attr('name');
 
@@ -418,32 +420,32 @@ function pickField() {
             alert('AutoFieldJS: Field already exists');
         }
         
-        $('input[name][type="text"], input[name][type="number"], textarea[name]').off('click');
-        $('input[name][type="text"], input[name][type="number"], textarea[name]').removeClass('autofield-glow');
+        $('input[name][type="text"], input[name][type="number"], textarea[name]').not('[readonly], :disabled').off('click');
+        $('input[name][type="text"], input[name][type="number"], textarea[name]').not('[readonly], :disabled').removeClass('autofield-glow');
         viewConfig(currentConfig);
     });
 }
 
 function createFieldItem(field, value) {
     var item = $('<p>', { class: 'autofield-field-item' });
+    var editBtn = $('<button class="autofield">Edit</button>');
     var removeBtn = $('<button class="autofield">Remove</button>');
     item.append('<label class="autofield">' + field + '</label>');
     
-    var ref = $('[name="' + field + '"]').clone();
+    // var ref = $('[name="' + field + '"]').clone();
+    var ref = $('<input>');
     ref.attr('class', 'autofield');
     item.append(ref);
-
-    if(ref.is('[type="radio"]')) {
-        ref.each(function(o) {
-            $(this).before('<label>' + $(this).val() + '</label>');
-        });
-    } else if(ref.is('[type="checkbox"]')){
-        
-    } else {
-        ref.val(value);
-    }
-
     item.append(removeBtn);
+    item.append(editBtn);
+
+    editBtn.click(function() {
+        var val = window.prompt('Please enter configuration for "' + field + '"');
+        if(val != null)
+            ref.val(val);
+    })
+
+    ref.val(value);
 
     removeBtn.click(function() {
         item.remove();
@@ -463,11 +465,17 @@ function configExists(name) {
 }
 
 function viewConfig(name) {
+
     if(configExists(name)) {
         currentConfig = name;
+
+        var url = Utils.url();
+        if(url.length >= 80)
+            url = url.substr(0, 77) + '...';
+
         if(createOverlay(`
             <div>
-                <h1 class="autofield" style="text-align: center;">` + Utils.url() + '#' + name + `</h1>
+                <h1 class="autofield" style="text-align: center;">` + url + '#' + name + `</h1>
                 <hr>
                 <div style="display:flex; justify-content: space-between;">
                     <div>
@@ -481,6 +489,26 @@ function viewConfig(name) {
                 </div>
                 <hr>
                 <button class="autofield" id="autofield-add-btn">Add Field</button>
+                <hr>
+                <p style="color:red">If for some reason the field cannot be edited, please click on the edit button to set the configuration</p>
+                <p>To generate a custom string, key in '[String(<span style="font-style:italic">length</span>)]' where length (optional) is the number of characters to generate</p>
+                <ul>
+                    <li><p>eg. [String] or [String()] will generate a random string of 10 characters</p></li>
+                    <li><p>eg. [String(200)] will generate a random string of 200 characters</p></li>
+                </ul>
+
+                <p>To generate a custom date, key in '[Date(<span style="font-style:italic">days, months, years</span>)]' where days/months/years is the number of days/months/years to add or subtract (use negative numbers to subtract) to the date. If any of the params are empty, the scrpit will use today's day/month/year</p>
+                <ul>
+                    <li><p>eg. [Date] or [Date()] will generate a today's date</p></li>
+                    <li><p>eg. [Date(0,0,1)] will generate a date a year ahead and [Date(0,0,-1)] will generate a date a year before</p></li>
+                </ul>
+
+                <p>To generate a custom time, key in '[Time(<span style="font-style:italic">seconds, minutes, hours</span>)]' where seconds/minutes/hours is the number of seconds/minutes/hours to add or subtract (use negative numbers to subtract) to the time. If any of the params are empty, the scrpit will use the current seconds/minutes/hours</p>
+                <ul>
+                    <li><p>eg. [Time] or [Time()] will generate a today's time</p></li>
+                    <li><p>eg. [Time(0,0,1)] will generate a time 1 hour from now and [Date(0,0,-1)] will generate a date a time an hour earlier</p></li>
+                </ul>
+                <p>eg. <span style="font-weight: bold">Test [Date] [Time] [String(20)]'</span> will generate <span style="font-weight: bold">'Test ` + Generate.date() + ' ' + Generate.time() + ' ' + Generate.string(20) + `'</span></p>
                 <hr>
                 <div id="autofield-field-list">
                     <p class="autofield">No field exists</p>
@@ -572,11 +600,12 @@ function viewConfigList(url) {
         </div>
     `)) {
         var keys = GM_listValues();
-        var arr = _.filter(keys, item => item.indexOf(url >= 0));
+        var arr = _.filter(keys, item => item.includes(url.toUpperCase()));
         $('#autofield-config-list').html('');
 
         if(arr.length > 0) {
             _.each(arr, function(key) {
+                console.log(key);
                 var page = AutoFieldDb.get(key);
                 var item = createConfigItem(page.name);
                 item.find('#autofield-load-btn').click(function() {
@@ -592,7 +621,6 @@ function viewConfigList(url) {
 }
 
 // Logic
-
 $(document).keypress(function(e) {
     if(e.altKey && e.shiftKey) {
         switch(e.key) {
